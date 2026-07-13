@@ -1,0 +1,123 @@
+classDiagram
+    %% PawPal+ FINAL class diagram — matches pawpal_system.py
+
+    class Priority {
+        <<enumeration>>
+        LOW
+        MEDIUM
+        HIGH
+    }
+
+    class Frequency {
+        <<enumeration>>
+        ONCE
+        DAILY
+        WEEKLY
+    }
+
+    class Task {
+        +str name
+        +int duration
+        +Priority priority
+        +str preferred_time
+        +Frequency frequency
+        +int scheduled_weekday
+        +date due_date
+        +bool completed
+        +Pet pet
+        +priority_score() int
+        +preferred_start_minutes() int
+        +mark_complete() Task
+        +next_occurrence() Task
+        +describe() str
+    }
+
+    class Walk {
+        +describe() str
+    }
+    class Feeding {
+        +describe() str
+    }
+    class Medication {
+        +priority_score() int
+        +describe() str
+    }
+    class Grooming {
+        +describe() str
+    }
+    class Enrichment {
+        +describe() str
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +list~Task~ tasks
+        +add_task(task Task) None
+        +remove_task(task Task) None
+        +list_tasks() list~Task~
+    }
+
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        +list~Pet~ pets
+        +add_pet(pet Pet) None
+        +all_tasks() list~Task~
+    }
+
+    class ScheduledItem {
+        +str start_time
+        +Task task
+    }
+
+    class DailyPlan {
+        +str owner_name
+        +list~ScheduledItem~ scheduled_items
+        +list~Task~ skipped_tasks
+        +list~dict~ conflicts
+        +str reasoning
+        +add_item(start_time str, task Task) None
+        +total_duration() int
+        +display() str
+    }
+
+    class Scheduler {
+        +list~Task~ tasks
+        +int available_minutes
+        +str day_start
+        +dict preferences
+        +str owner_name
+        +from_owner(owner Owner) Scheduler
+        +sort_tasks(tasks) list~Task~
+        +sort_by_time(tasks) list~Task~
+        +filter_by_pet(tasks, pet_name) list~Task~
+        +filter_by_status(tasks, done) list~Task~
+        +for_day(tasks, weekday) list~Task~
+        +filter_by_time(tasks) list~Task~
+        +detect_conflicts(tasks) list~str~
+        +resolve_conflicts(tasks) list~Task~
+        +generate_plan(weekday, include_completed) DailyPlan
+        +explain(plan DailyPlan) str
+    }
+
+    Task <|-- Walk
+    Task <|-- Feeding
+    Task <|-- Medication
+    Task <|-- Grooming
+    Task <|-- Enrichment
+
+    Task --> Priority : priority
+    Task --> Frequency : frequency
+
+    Owner "1" o-- "*" Pet : has
+    Pet "1" *-- "*" Task : owns
+
+    DailyPlan "1" *-- "*" ScheduledItem : contains
+    ScheduledItem --> Task : wraps
+
+    Scheduler ..> Owner : reads constraints
+    Scheduler ..> Task : schedules
+    Scheduler ..> DailyPlan : produces

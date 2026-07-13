@@ -66,13 +66,49 @@ correct but heavier and beyond what a quick heads-up needs.
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used the AI coding assistant across every phase: brainstorming the object
+model from the README, drafting the UML, generating class skeletons, filling in
+scheduling logic, writing tests, and wiring the Streamlit UI. The most effective
+features were:
+
+- Whole-file context** — attaching `pawpal_system.py`  and asking targeted
+  questions ("how should the Scheduler retrieve all tasks from the owner's
+  pets?") produced answers grounded in my actual code, not generic advice.
+- Incremental, verifiable steps** — asking for one method or one feature at a
+  time (skeleton → logic → tests) kept each change small enough to check.
+
+The most helpful prompts were specific and outcome-oriented: "what edge cases
+matter for a pet scheduler with recurring tasks?", "how do I use `timedelta` to
+compute the next due date?", and "is the bug in my test or my logic?".
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+- **A suggestion I modified:** when I asked how to simplify `detect_conflicts()`,
+  the assistant offered a compact `itertools.groupby` one-liner. I rejected it —
+  `groupby` yields one-shot iterators, so testing a group's length *and* listing
+  its members in the same comprehension creates bugs, and the nested version was
+  harder to read. I kept the plain "group into a dict, then warn" loop. Cleaner
+  design beat a clever one-liner.
+- **A suggestion I redirected:** the first skeleton let pets be created
+  implicitly whenever a task was added. I changed it to an explicit "Add a Pet"
+  form calling `Owner.add_pet()`, so each UI form maps to one class method.
+- **How I verified:** I relied on the test suite (16 passing tests, including
+  edge cases like an empty owner and a Dec 31 → Jan 1 recurrence rollover),
+  running `main.py` to eyeball real output, and booting the Streamlit app to
+  confirm it loaded without errors.
+
+**c. AI strategy — working across phases**
+
+Using a **separate chat session per phase** (design, implementation, testing, UI)
+kept each conversation focused and prevented context from one concern bleeding
+into another — the testing session, for example, stayed entirely about edge
+cases and `pytest` rather than re-litigating design decisions. It also made it
+easy to attach only the files relevant to that phase.
+
+The biggest lesson was about being the **lead architect**: the AI is fast and
+often right if you provide all the information needed.
+The AI provided the *how*; I stayed responsible for the *what* and
+the *why*.
 
 ---
 
@@ -80,13 +116,31 @@ correct but heavier and beyond what a quick heads-up needs.
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+I wrote 16 tests in `tests/test_pawpal.py` covering the behaviors most likely to
+break:
+
+- **Core data behavior** — `mark_complete()` flips a task's status; `add_task()`
+  grows a pet's task list.
+- **Sorting** — `sort_by_time()` returns tasks in chronological order with
+  flexible (untimed) tasks last.
+- **Filtering** — `filter_by_status()` keeps only incomplete tasks, and
+  `generate_plan()` skips completed ones; `filter_by_pet()` returns just the
+  named pet's tasks.
+- **Recurrence** — completing a DAILY task spawns tomorrow's copy, a WEEKLY task
+  advances 7 days (same weekday), and a ONCE task spawns nothing.
+- **Conflict detection** — same-time clashes are flagged both across pets and on
+  the same pet; a shifted task is recorded in `plan.conflicts`.
+- **Edge cases** — an owner with no tasks returns an empty plan without crashing,
+  and daily recurrence rolls over the month/year boundary (Dec 31 → Jan 1).
+
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+I am fairly confident — about **4 out of 5**. All 16 tests pass, and they cover
+the core algorithms plus the edge cases I considered most fragile. The
+confidence isn't higher because the tests exercise the domain logic directly,
+not the Streamlit UI, and because `detect_conflicts()` only catches exact
+same-time clashes rather than overlapping durations (a documented tradeoff).
 
 ---
 
@@ -94,12 +148,25 @@ correct but heavier and beyond what a quick heads-up needs.
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+I'm most satisfied with the clean separation between **data** (`Task`, `Pet`,
+`Owner`, `DailyPlan`) and the **algorithm** (`Scheduler`). That single decision
+paid off repeatedly: I could add sorting, filtering, recurrence, and conflict
+detection as small composable methods, test them in isolation, and wire them
+into the UI without touching the data classes. The composable pipeline
+(sort → filter → resolve → place) made the whole system feel predictable.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+I would unify the two recurrence mechanisms. Right now `due_date` (advanced by
+`timedelta` when a task is completed) and `scheduled_weekday` (used by
+`for_day()`) coexist but aren't connected, so "which day is this task actually
+due" is tracked in two places. I'd make `generate_plan()` filter by a real
+calendar date so the daily plan only shows tasks genuinely due today. I'd also
+upgrade `detect_conflicts()` to catch overlapping durations, not just exact
+time matches.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+The most important thing I learned is that **good structure is what makes a
+system have the ability to grow**. Every feature I added in later phases was easy *because* the
+early design isolated responsibilities.

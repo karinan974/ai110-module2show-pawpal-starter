@@ -134,29 +134,52 @@ else:
         st.success(f"Added “{task_title}” to {pet_name}.")
 
 # --- Current tasks ----------------------------------------------------------
+# Uses the Scheduler's sort_by_time / filter_by_pet / filter_by_status methods
+# so the table reflects the same logic the schedule is built from.
 st.markdown("### Current tasks")
 all_tasks = owner.all_tasks()
-if all_tasks:
-    st.table(
-        [
-            {
-                "pet": t.pet.name,
-                "task": t.name,
-                "type": type(t).__name__,
-                "duration (min)": t.duration,
-                "priority": t.priority.name.lower(),
-                "preferred": t.preferred_time or "—",
-            }
-            for t in all_tasks
-        ]
-    )
+if not all_tasks:
+    st.info("No tasks yet. Add one above.")
+else:
+    view = Scheduler.from_owner(owner, day_start=day_start)
+
+    fcol1, fcol2 = st.columns(2)
+    with fcol1:
+        pet_filter = st.selectbox(
+            "View tasks for", ["All pets"] + [p.name for p in owner.pets]
+        )
+    with fcol2:
+        hide_done = st.checkbox("Hide completed", value=False)
+
+    tasks = view.sort_by_time(all_tasks)  # chronological order
+    if pet_filter != "All pets":
+        tasks = view.filter_by_pet(tasks, pet_filter)
+    if hide_done:
+        tasks = view.filter_by_status(tasks, done=False)
+
+    if tasks:
+        st.table(
+            [
+                {
+                    "time": t.preferred_time or "flexible",
+                    "pet": t.pet.name,
+                    "task": t.name,
+                    "type": type(t).__name__,
+                    "min": t.duration,
+                    "priority": t.priority.name.lower(),
+                    "status": "✓ done" if t.completed else "pending",
+                }
+                for t in tasks
+            ]
+        )
+    else:
+        st.caption("No tasks match this view.")
+
     if st.button("Clear all pets & tasks"):
         st.session_state.owner = Owner(
             name=owner_name, available_minutes=int(available)
         )
         st.rerun()
-else:
-    st.info("No tasks yet. Add one above.")
 
 st.divider()
 
@@ -168,9 +191,46 @@ if st.button("Generate schedule"):
         st.warning("Add at least one task first.")
     else:
         try:
-            plan = Scheduler.from_owner(owner, day_start=day_start).generate_plan()
+            scheduler = Scheduler.from_owner(owner, day_start=day_start)
+            conflicts = scheduler.detect_conflicts()  # proactive check
+            plan = scheduler.generate_plan()
         except ValueError:
             st.error("Day start must be in HH:MM format, e.g. 08:00.")
         else:
-            st.code(plan.display(), language="text")
+            # Same-time clashes: shown up front so the owner can rethink a slot.
+            for warning in conflicts:
+                st.warning(warning)
+
+            st.success(
+                f"Scheduled {len(plan.scheduled_items)} task(s) — "
+                f"{plan.total_duration()} of {owner.available_minutes} minutes used."
+            )
+
+            if plan.scheduled_items:
+                st.table(
+                    [
+                        {
+                            "time": item.start_time,
+                            "pet": item.task.pet.name if item.task.pet else "—",
+                            "task": item.task.name,
+                            "type": type(item.task).__name__,
+                            "min": item.task.duration,
+                            "priority": item.task.priority.name.lower(),
+                        }
+                        for item in plan.scheduled_items
+                    ]
+                )
+
+            # Tasks the scheduler had to shift to avoid an overlap.
+            for c in plan.conflicts:
+                st.warning(
+                    f"⏰ {c['task']} wanted {c['requested']} but was moved to "
+                    f"{c['actual']} to avoid an overlap."
+                )
+
+            # Tasks dropped because the day ran out of time.
+            if plan.skipped_tasks:
+                names = ", ".join(t.name for t in plan.skipped_tasks)
+                st.error(f"Skipped (out of time): {names}")
+
             st.info(plan.reasoning)

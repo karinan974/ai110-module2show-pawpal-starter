@@ -2,6 +2,17 @@
 
 You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
 
+## ✨ Features
+
+- **Multi-pet task tracking** — one owner manages several pets, each with its own care tasks (walks, feeding, meds, grooming, enrichment).
+- **Priority-aware scheduling** — tasks are ordered by priority, then by shorter duration to fit more into the day; medications always sort first and are never dropped for time.
+- **Sorting by time** — `sort_by_time()` returns tasks in chronological order (flexible/untimed tasks last).
+- **Filtering** — view tasks by pet (`filter_by_pet`) or by completion status (`filter_by_status`); completed tasks are skipped when building a plan.
+- **Time-budget fitting** — tasks that don't fit the owner's available minutes are dropped and reported (`filter_by_time`).
+- **Conflict warnings** — `detect_conflicts()` flags two tasks wanting the same time slot (same pet or across pets), and the planner reports any task it shifted to avoid an overlap.
+- **Daily & weekly recurrence** — completing a recurring task auto-creates the next occurrence (tomorrow for daily, +7 days for weekly) using `timedelta`.
+- **Explained plans** — every generated plan includes a plain-language reason for its choices.
+
 ## Scenario
 
 A busy pet owner needs help staying consistent with pet care. They want an assistant that can:
@@ -142,26 +153,59 @@ method that implements it:
 
 ## 📸 Demo Walkthrough
 
-Launch the app with `streamlit run app.py`, then:
+### Main UI features (what a user can do)
 
-1. **Set the owner and constraints.** Enter the owner's name, the total minutes
-   available today, and the day's start time (e.g., `08:00`).
-2. **Add a pet.** Fill in the "Add a Pet" form (name, species, breed) and click
-   **Add pet** — this calls `Owner.add_pet()`. Add a second pet to see
-   multi-pet scheduling.
-3. **Add tasks.** Pick a pet, choose a task type (Walk, Feeding, Medication,
-   Grooming, Enrichment), set duration and priority, and optionally a preferred
-   time. Click **Add task** to call `Pet.add_task()`. The task appears in the
-   "Current tasks" table immediately (thanks to `st.session_state`).
-4. **Create a deliberate clash** by giving two tasks the same preferred time —
-   the app can then show conflict handling.
-5. **Generate the schedule.** Click **Generate schedule** to run
-   `Scheduler.from_owner(owner).generate_plan()`. The plan lists each task with
-   its assigned time and pet, notes any tasks skipped for time, flags shifted
-   conflicts, and shows the reasoning.
+Launch the app with `streamlit run app.py`. The single-page UI lets a user:
 
-To try the same flow in the terminal instead, run `python main.py`, which builds
-a two-pet scenario and prints the sorting, filtering, conflict-detection, and
-schedule output shown in the Sample Output section above.
+- **Set owner & constraints** — owner name, minutes available today, and the day's start time.
+- **Add pets** — name, species, breed (each becomes a schedulable pet).
+- **Add tasks** — choose the pet, a task type (Walk / Feeding / Medication / Grooming / Enrichment), duration, priority, and an optional preferred time.
+- **Review current tasks** — a live table with a "View tasks for" pet filter and a "Hide completed" toggle, sorted chronologically.
+- **Generate a schedule** — a formatted plan table plus warning/info banners.
+
+### Example workflow
+
+1. **Add a pet** → fill the "Add a Pet" form and click **Add pet** (calls `Owner.add_pet()`).
+2. **Schedule a task** → pick that pet, set duration/priority/preferred time, click **Add task** (calls `Pet.add_task()`). It appears instantly in the Current tasks table (state persists via `st.session_state`).
+3. **View today's schedule** → click **Generate schedule** (runs `Scheduler.from_owner(owner).generate_plan()`).
+
+### Key Scheduler behaviors shown
+
+- **Sorting** — the Current tasks table is ordered by time (`sort_by_time`); the plan orders by priority.
+- **Filtering** — the pet dropdown (`filter_by_pet`) and "Hide completed" toggle (`filter_by_status`) change what's shown.
+- **Conflict warnings** — two tasks at the same time raise an `st.warning` banner (`detect_conflicts`), and any task the planner shifts is reported ("moved to 09:20 to avoid an overlap").
+- **Skipped tasks** — anything that won't fit the time budget is flagged with `st.error`.
+- **Reasoning** — the plan's explanation is shown in an `st.info` banner.
+
+### Sample CLI output (`python main.py`)
+
+```text
+Sorted by time (sort_by_time):
+  08:00 — 🐕 Morning walk (30 min) [priority: high]  ·  Biscuit
+  09:15 — 💊 Heart meds (5 min) [priority: high]  ·  Biscuit
+  09:15 — 🍽️ Breakfast (10 min) [priority: medium]  ·  Mittens
+  12:30 — 🛁 Brush coat (15 min) [priority: low]  ·  Mittens
+  17:00 — 🧸 Puzzle toy (20 min) [priority: low]  ·  Biscuit
+
+Conflict check (detect_conflicts):
+  ⚠️  Conflict at 09:15: Heart meds (Biscuit), Breakfast (Mittens)
+
+================================================
+Today's Schedule
+================================================
+Daily plan for Alex:
+  09:15 — 💊 Heart meds (5 min) [priority: high]  ·  Biscuit
+  09:20 — 🍽️ Breakfast (10 min) [priority: medium]  ·  Mittens
+  12:30 — 🛁 Brush coat (15 min) [priority: low]  ·  Mittens
+  17:00 — 🧸 Puzzle toy (20 min) [priority: low]  ·  Biscuit
+
+Time conflicts (shifted):
+  - Breakfast: wanted 09:15, moved to 09:20
+
+Why this plan:
+  Scheduled 4 task(s) using 50 of 120 available minutes. Tasks are ordered by
+  priority (medications first), then by shorter duration so more fit in the day.
+  Time conflicts resolved by shifting: Breakfast wanted 09:15 but was moved to 09:20.
+```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
