@@ -71,39 +71,56 @@ Why this plan:
 
 ```bash
 # Run the full test suite:
-pytest
+python -m pytest
 
 # Run with coverage:
 pytest --cov
 ```
 
-Sample test output:
+**What the tests cover** (16 tests in `tests/test_pawpal.py`):
+
+- **Core behaviors** — task completion (`mark_complete`) and adding tasks to a pet.
+- **Sorting correctness** — `sort_by_time()` returns tasks in chronological order, flexible tasks last.
+- **Filtering** — by completion status and by pet; `generate_plan()` skips completed tasks.
+- **Recurrence logic** — completing a daily task creates a new task for the next day, weekly advances 7 days, and once-off tasks don't recur.
+- **Conflict detection** — `detect_conflicts()` flags duplicate times (same pet and across pets); shifted tasks are recorded during placement.
+- **Edge cases** — an owner with no tasks returns an empty plan (no crash), and daily recurrence rolls over the month/year boundary (Dec 31 → Jan 1).
+
+Successful run:
 
 ```text
-$ pytest -v
+$ python -m pytest -v
 ============================= test session starts ==============================
 platform darwin -- Python 3.9.0, pytest-8.4.2, pluggy-1.6.0
-collected 13 items
+collected 16 items
 
-tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [  7%]
-tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED      [ 15%]
-tests/test_pawpal.py::test_filter_by_status_keeps_only_incomplete PASSED [ 23%]
-tests/test_pawpal.py::test_generate_plan_skips_completed_tasks PASSED    [ 30%]
-tests/test_pawpal.py::test_filter_by_pet_returns_only_that_pets_tasks PASSED [ 38%]
-tests/test_pawpal.py::test_sort_by_time_orders_timed_first_flexible_last PASSED [ 46%]
-tests/test_pawpal.py::test_for_day_includes_daily_and_matching_weekly PASSED [ 53%]
-tests/test_pawpal.py::test_conflict_detection_records_shifted_task PASSED [ 61%]
-tests/test_pawpal.py::test_completing_daily_task_spawns_next_day PASSED  [ 69%]
-tests/test_pawpal.py::test_completing_weekly_task_spawns_next_week PASSED [ 76%]
-tests/test_pawpal.py::test_completing_once_task_does_not_spawn PASSED    [ 84%]
-tests/test_pawpal.py::test_detect_conflicts_flags_same_time_across_pets PASSED [ 92%]
-tests/test_pawpal.py::test_detect_conflicts_empty_when_no_clash PASSED   [100%]
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [  6%]
+tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED      [ 12%]
+tests/test_pawpal.py::test_filter_by_status_keeps_only_incomplete PASSED [ 18%]
+tests/test_pawpal.py::test_generate_plan_skips_completed_tasks PASSED    [ 25%]
+tests/test_pawpal.py::test_filter_by_pet_returns_only_that_pets_tasks PASSED [ 31%]
+tests/test_pawpal.py::test_sort_by_time_orders_timed_first_flexible_last PASSED [ 37%]
+tests/test_pawpal.py::test_for_day_includes_daily_and_matching_weekly PASSED [ 43%]
+tests/test_pawpal.py::test_conflict_detection_records_shifted_task PASSED [ 50%]
+tests/test_pawpal.py::test_completing_daily_task_spawns_next_day PASSED  [ 56%]
+tests/test_pawpal.py::test_completing_weekly_task_spawns_next_week PASSED [ 62%]
+tests/test_pawpal.py::test_completing_once_task_does_not_spawn PASSED    [ 68%]
+tests/test_pawpal.py::test_detect_conflicts_flags_same_time_across_pets PASSED [ 75%]
+tests/test_pawpal.py::test_detect_conflicts_empty_when_no_clash PASSED   [ 81%]
+tests/test_pawpal.py::test_generate_plan_with_no_tasks_returns_empty_plan PASSED [ 87%]
+tests/test_pawpal.py::test_detect_conflicts_flags_same_pet_duplicate_times PASSED [ 93%]
+tests/test_pawpal.py::test_daily_recurrence_rolls_over_month_boundary PASSED [100%]
 
-============================== 13 passed in 0.03s ==============================
+============================== 16 passed in 0.06s ==============================
 ```
 
-The suite covers task completion, pet/task wiring, the filter and sort methods,
-recurring-task regeneration, and both conflict-detection paths.
+**Confidence Level: ★★★★☆ (4 / 5)**
+
+The core scheduling logic — sorting, filtering, recurrence, and conflict
+detection — is covered by unit tests including edge cases, and all 16 pass.
+One star is held back because the tests exercise the domain logic directly, not
+the Streamlit UI, and `detect_conflicts()` only catches exact same-time clashes
+rather than overlapping durations (see the tradeoff in `reflection.md`).
 
 ## 📐 Smarter Scheduling
 

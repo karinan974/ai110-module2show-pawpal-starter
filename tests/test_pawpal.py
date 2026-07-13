@@ -205,3 +205,46 @@ def test_detect_conflicts_empty_when_no_clash():
     sched = Scheduler.from_owner(owner)
 
     assert sched.detect_conflicts() == []
+
+
+# --- Edge cases -------------------------------------------------------------
+
+
+def test_generate_plan_with_no_tasks_returns_empty_plan():
+    """An owner with a pet but no tasks yields an empty plan, not a crash."""
+    owner = Owner("Sam", available_minutes=120)
+    owner.add_pet(Pet("Rex", "Dog", "Mutt"))  # pet, but zero tasks
+    sched = Scheduler.from_owner(owner)
+
+    plan = sched.generate_plan()
+
+    assert plan.scheduled_items == []
+    assert plan.skipped_tasks == []
+    assert plan.total_duration() == 0
+
+
+def test_detect_conflicts_flags_same_pet_duplicate_times():
+    """Two tasks on the SAME pet at the same slot are also flagged."""
+    pet = Pet("Rex", "Dog", "Mutt")
+    pet.add_task(Walk("Walk", duration=20, preferred_time="07:30"))
+    pet.add_task(Feeding("Feed", duration=10, preferred_time="07:30"))
+    owner = Owner("Sam", available_minutes=120)
+    owner.add_pet(pet)
+    sched = Scheduler.from_owner(owner)
+
+    warnings = sched.detect_conflicts()
+
+    assert len(warnings) == 1
+    assert "07:30" in warnings[0]
+
+
+def test_daily_recurrence_rolls_over_month_boundary():
+    """timedelta advances a daily task from Dec 31 to Jan 1 correctly."""
+    pet = Pet("Rex", "Dog", "Mutt")
+    task = Feeding("Dinner", duration=10, frequency=Frequency.DAILY,
+                   due_date=date(2026, 12, 31))
+    pet.add_task(task)
+
+    upcoming = task.mark_complete()
+
+    assert upcoming.due_date == date(2027, 1, 1)  # month AND year roll over
