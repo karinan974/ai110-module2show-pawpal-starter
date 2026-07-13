@@ -2,6 +2,11 @@
 
 ## 1. System Design
 
+- Three Core Actions:
+    1. Add a Pet
+    2. Track Pet Care Tasks
+    3. Provide a Daily Plan that considers Constraints
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.

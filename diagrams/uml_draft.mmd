@@ -1,0 +1,87 @@
+classDiagram
+    %% PawPal+ class diagram
+    %% Keep this file updated so it matches your final implementation.
+
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        +list~Pet~ pets
+        +add_pet(pet Pet) None
+        +all_tasks() list~Task~
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +list~Task~ tasks
+        +add_task(task Task) None
+        +remove_task(task Task) None
+        +list_tasks() list~Task~
+    }
+
+    class Task {
+        +str name
+        +int duration
+        +str priority
+        +str preferred_time
+        +bool recurring
+        +priority_score() int
+        +describe() str
+    }
+
+    class Walk {
+        +describe() str
+    }
+
+    class Feeding {
+        +describe() str
+    }
+
+    class Medication {
+        +priority_score() int
+        +describe() str
+    }
+
+    class Grooming {
+        +describe() str
+    }
+
+    class Enrichment {
+        +describe() str
+    }
+
+    class Scheduler {
+        +list~Task~ tasks
+        +int available_minutes
+        +dict preferences
+        +sort_tasks() list~Task~
+        +filter_by_time() list~Task~
+        +resolve_conflicts() list~Task~
+        +generate_plan() DailyPlan
+        +explain() str
+    }
+
+    class DailyPlan {
+        +list scheduled_items
+        +int total_minutes
+        +list~Task~ skipped_tasks
+        +str reasoning
+        +add_item(time str, task Task) None
+        +total_duration() int
+        +display() str
+    }
+
+    Owner "1" o-- "*" Pet : has
+    Pet "1" *-- "*" Task : owns
+
+    Task <|-- Walk
+    Task <|-- Feeding
+    Task <|-- Medication
+    Task <|-- Grooming
+    Task <|-- Enrichment
+
+    Scheduler ..> Owner : reads constraints
+    Scheduler ..> Task : schedules
+    Scheduler ..> DailyPlan : produces
